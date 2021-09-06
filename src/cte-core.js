@@ -1639,6 +1639,18 @@ mw.loader.using([
         parsoidDocument: parsoidDocument,
         openEditDialog: openEditDialog
     });
+    
+    if (document.getElementById("pt-cte") == null) {
+    	mw.util.addPortletLink(
+	        "p-tb",
+	        "javascript:void(0)",
+	        "{{copied}} Template Editor",
+	        "pt-cte"
+	    ).addEventListener("click", function() {
+	        window.CopiedTemplateEditor.toggleButtons(false);
+	        openEditDialog();
+	    });
+    }
 
     // Only run if this script wasn't loaded using the loader.
     if (!window.CopiedTemplateEditor || !window.CopiedTemplateEditor.loader) {
