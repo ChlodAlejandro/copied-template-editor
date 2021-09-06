@@ -647,6 +647,7 @@ mw.loader.using([
                     return new Promise((res) => {
                         this.iframe.addEventListener("load", () => {
                             this.findCopiedNotices();
+                            this.originalNoticeCount = this.copiedNotices.length;
                             res();
                         });
                     });
@@ -681,7 +682,7 @@ mw.loader.using([
         }
 
         findCopiedNotices() {
-            if (!parsoidDocument.loaded)
+            if (!this.loaded)
                 throw "parsoidDocument has nothing loaded.";
             /**
              * A list of {{copied}} notices in the document.
@@ -714,8 +715,6 @@ mw.loader.using([
                     }
                 }
             });
-
-            this.originalNoticeCount = this.copiedNotices.length;
         }
 
         /**
@@ -1530,6 +1529,7 @@ mw.loader.using([
                 }
 
                 process.next(async function () {
+                    const action = parsoidDocument.originalNoticeCount > 0 ? "Modifying" : "Adding";
                     return new mw.Api().postWithEditToken({
                         action: "edit",
                         format: "json",
@@ -1537,7 +1537,7 @@ mw.loader.using([
                         utf8: "true",
                         title: parsoidDocument.page,
                         text: await parsoidDocument.toWikitext(),
-                        summary: "Modifying {{copied}} templates ([[User:Chlod/CTE|CopiedTemplateEditor]])"
+                        summary: `${action} {{[[Template:Copied|copied]]}} templates ([[User:Chlod/CTE|CopiedTemplateEditor]])`
                     });
                 }, this);
                 process.next(function () {
