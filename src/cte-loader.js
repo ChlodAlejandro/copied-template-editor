@@ -1,3 +1,5 @@
+// noinspection ES6ConvertVarToLetConst
+
 /*
  * Copied Template Editor - Loader Script
  *
@@ -6,6 +8,8 @@
  * load times by only loading components when we have to, so that we don't have
  * to repeatedly load in the entire script (along with UI and other utility
  * code) for every page you visit.
+ *
+ * NOTE: This file MUST be loadable in ES5.
  *
  * More information on the userscript itself can be found at [[WP:CTE]].
  */
@@ -76,15 +80,17 @@ mw.loader.using([
         });
     });
 
-    mw.util.addPortletLink(
-        "p-tb",
-        "javascript:void(0)",
-        "{{copied}} Template Editor",
-        "pt-cte"
-    ).addEventListener("click", function() {
-        window.CopiedTemplateEditor.toggleButtons(false);
-        openEditDialog();
-    });
+    if (mw.config.get("wgNamespaceNumber") >= 0) {
+        mw.util.addPortletLink(
+            "p-tb",
+            "javascript:void(0)",
+            "{{copied}} Template Editor",
+            "pt-cte"
+        ).addEventListener("click", function() {
+            window.CopiedTemplateEditor.toggleButtons(false);
+            openEditDialog();
+        });
+    }
 
 });
 

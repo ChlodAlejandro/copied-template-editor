@@ -5,7 +5,7 @@
  * array below, this file depends on a lot of things, so loading it is likely
  * going to be a bit tough.
  *
- * More information on the userscript itself can be found at [[WP:CTE]].
+ * More information on the userscript itself can be found at [[User:Chlod/CTE]].
  */
 // <nowiki>
 mw.loader.using([
@@ -70,7 +70,7 @@ mw.loader.using([
      */
     const copiedTemplateRowParameters = [
         "from", "from_oldid", "to", "to_diff",
-        "to_oldid", "url", "date", "afd", "merge"
+        "to_oldid", "diff", "url", "date", "afd", "merge"
     ];
 
     /**
@@ -777,7 +777,9 @@ mw.loader.using([
                     template: {
                         target: { wt: "copied\n", href: "./Template:Copied" },
                         params: {
-                            to: { wt: parsoidDocument.page }
+                            to: {
+                                wt: new mw.Title(parsoidDocument.page).getSubjectPage().getPrefixedText()
+                            }
                         },
                         i: 0
                     }
@@ -1161,26 +1163,29 @@ mw.loader.using([
                 value: copiedTemplateRow.from,
                 validate: /^.+$/g
             }),
-            from_oldid: new OO.ui.NumberInputWidget({
-                placeholder: "10000000000",
-                value: copiedTemplateRow.from_oldid
+            from_oldid: new OO.ui.TextInputWidget({
+                placeholder: "from_oldid",
+                value: copiedTemplateRow.from_oldid,
+                validate: /^\d*$/
             }),
             to: new OO.ui.TextInputWidget({
                 placeholder: "Page B",
                 value: copiedTemplateRow.to
             }),
-            to_diff: new OO.ui.NumberInputWidget({
-                placeholder: "20000000001",
-                value: copiedTemplateRow.to_diff
+            to_diff: new OO.ui.TextInputWidget({
+                placeholder: "to_diff",
+                value: copiedTemplateRow.to_diff,
+                validate: /^\d*$/
             }),
 
             // Advanced options
-            to_oldid: new OO.ui.NumberInputWidget({
-                placeholder: "20000000000",
-                value: copiedTemplateRow.to_oldid
+            to_oldid: new OO.ui.TextInputWidget({
+                placeholder: "to_oldid",
+                value: copiedTemplateRow.to_oldid,
+                validate: /^\d*$/
             }),
             diff: new OO.ui.TextInputWidget({
-                placeholder: "https://en.wikipedia.org/w/index.php?diff=20000000000",
+                placeholder: "https://en.wikipedia.org/w/index.php?diff=123456",
                 value: copiedTemplateRow.diff
             }),
             merge: new OO.ui.CheckboxInputWidget({
@@ -1296,6 +1301,8 @@ mw.loader.using([
                 }
                 copiedTemplateRow.parent.save();
             });
+            if (input instanceof OO.ui.TextInputWidget)
+                input.setValidityFlag();
         }
 
         // Append
@@ -1515,6 +1522,13 @@ mw.loader.using([
         const process = CopiedTemplateEditorDialog.super.prototype.getActionProcess.call(this, action);
         switch (action) {
             case "save":
+                // Quick and dirty validity check.
+                if (this.content.$element[0].querySelector(".oo-ui-flaggedElement-invalid") == null) {
+                    return new OO.ui.Process(() => {
+                        OO.ui.alert("Some fields are still invalid.");
+                    });
+                }
+
                 process.next(async function () {
                     return new mw.Api().postWithEditToken({
                         action: "edit",
@@ -1523,7 +1537,7 @@ mw.loader.using([
                         utf8: "true",
                         title: parsoidDocument.page,
                         text: await parsoidDocument.toWikitext(),
-                        summary: "Modifying {{copied}} templates ([[WP:CTE|CTE]])"
+                        summary: "Modifying {{copied}} templates ([[User:Chlod/CTE|CopiedTemplateEditor]])"
                     });
                 }, this);
                 process.next(function () {
@@ -1534,7 +1548,7 @@ mw.loader.using([
                         window.location.href =
                             mw.config.get("wgArticlePath").replace(/\$1/g, parsoidDocument.page)
                     }
-                })
+                }, this);
                 break;
             case "reset":
                 process.next(function () {
@@ -1562,7 +1576,7 @@ mw.loader.using([
                             }
                         }
                     });
-                });
+                }, this);
                 break;
             case "delete":
                 process.next(function () {
@@ -1581,12 +1595,12 @@ mw.loader.using([
                             }
                         }
                     });
-                });
+                }, this);
                 break;
             case "add":
-                process.next(() => {
+                process.next(function () {
                     this.addTemplate();
-                });
+                }, this);
                 break;
         }
 
@@ -1639,17 +1653,17 @@ mw.loader.using([
         parsoidDocument: parsoidDocument,
         openEditDialog: openEditDialog
     });
-    
-    if (document.getElementById("pt-cte") == null) {
-    	mw.util.addPortletLink(
-	        "p-tb",
-	        "javascript:void(0)",
-	        "{{copied}} Template Editor",
-	        "pt-cte"
-	    ).addEventListener("click", function() {
-	        window.CopiedTemplateEditor.toggleButtons(false);
-	        openEditDialog();
-	    });
+
+    if (document.getElementById("pt-cte") == null && mw.config.get("wgNamespaceNumber") >= 0) {
+        mw.util.addPortletLink(
+            "p-tb",
+            "javascript:void(0)",
+            "{{copied}} Template Editor",
+            "pt-cte"
+        ).addEventListener("click", function() {
+            window.CopiedTemplateEditor.toggleButtons(false);
+            openEditDialog();
+        });
     }
 
     // Only run if this script wasn't loaded using the loader.
