@@ -725,14 +725,17 @@ mw.loader.using([
         findCopiedNoticeSpot() {
             /** @type {[InsertPosition, HTMLElement|null][]} */
             const possibleSpots = [
-                ["afterend", this.document.querySelector(".wpbs[data-mw]")],
-                ["afterend", this.document.querySelector(".wpb[data-mw]")],
-                ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterend", (() => {
                     const notices = this.document.querySelectorAll(".copiednotice[data-mw]");
                     // Still returns `null` even if out of range.
                     return notices.item(notices.length - 1);
                 })()],
+                ["afterend", this.document.querySelector(".wpbs[data-mw]")],
+                ["afterend", (() => {
+                    const banners = this.document.querySelectorAll(".wpb[data-mw]");
+                    return banners.item(banners.length - 1);
+                })],
+                ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterend", (() => {
                     const boxes = this.document.querySelectorAll(
                         "[data-mw-section-id=\"0\"] .tmbox[data-mw]:not(.mbox-small)"
@@ -740,7 +743,11 @@ mw.loader.using([
                     // Still returns `null` even if out of range.
                     return boxes.item(boxes.length - 1);
                 })()],
-                ["beforeend", this.document.querySelector("section[data-mw-section-id=\"0\"]")]
+                [
+                    this.document.querySelector("section[data-mw-section-id=\"1\"]") ?
+                        "beforeend" : "afterbegin",
+                    this.document.querySelector("section[data-mw-section-id=\"0\"]")
+                ]
             ];
 
             for (const spot of possibleSpots) {
