@@ -64,6 +64,9 @@ mw.loader.using([
         .oo-ui-actionFieldLayout.oo-ui-fieldLayout-align-top .oo-ui-fieldLayout-header {
             padding-bottom: 6px !important;
         }
+        .oo-ui-windowManager-modal > .oo-ui-window.oo-ui-dialog.oo-ui-messageDialog {
+            z-index: 200;
+        }
     `);
 
     // ============================== CONSTANTS ===============================
