@@ -3,7 +3,8 @@
  *
  * This contains all the required functionality of CTE. As evident by the
  * array below, this file depends on a lot of things, so loading it is likely
- * going to be a bit tough.
+ * going to be a bit tough. A loader can be used instead to optimize loading
+ * times.
  *
  * More information on the userscript itself can be found at [[User:Chlod/CTE]].
  */
@@ -60,6 +61,9 @@ mw.loader.using([
         .copied-template-editor .oo-ui-fieldsetLayout.oo-ui-iconElement > .oo-ui-fieldsetLayout-header {
             position: relative;
         }
+        .oo-ui-actionFieldLayout.oo-ui-fieldLayout-align-top .oo-ui-fieldLayout-header {
+            padding-bottom: 6px !important;
+        }
     `);
 
     // ============================== CONSTANTS ===============================
@@ -93,13 +97,13 @@ mw.loader.using([
      * @typedef {Record<string, string>} RawCopiedTemplateRow
      * @property {string} from
      *           The original article.
-     * @property {number|null} from_oldid
+     * @property {string|null} from_oldid
      *           The revision ID from which the content was copied from.
      * @property {string|null} to
      *           The article that content was copied into.
-     * @property {number|null} to_diff
+     * @property {string|null} to_diff
      *           The revision number of the copying diff.
-     * @property {number|null} to_oldid
+     * @property {string|null} to_oldid
      *           The oldid of the copying diff (for multiple edits).
      * @property {string|null} diff
      *           The URL of the copying diff. Overrrides to_diff and to_oldid.
@@ -615,23 +619,17 @@ mw.loader.using([
                     this.etag = data.headers.get("ETag");
 
                     if (data.status === 404) {
-                        console.log("[CTE] Talk page not found. Using fallback HTML.")
+                        console.log("[CTE] Talk page not found. Using fallback HTML.");
                         // Talk page doesn't exist. Load in a dummy IFrame.
                         this.notFound = true;
                         // A Blob is used in order to allow cross-frame access without changing
                         // the origin of the frame.
-                        this.iframe.src = URL.createObjectURL(
-                            new Blob([
-                                ParsoidDocument.defaultDocument
-                            ], {type : "text/html"})
-                        );
-                        this.page = page;
+                        return Promise.resolve(ParsoidDocument.defaultDocument);
                     } else {
                         return data.text();
                     }
                 })
-                .then(async (html) => {
-                    if (html == null) return;
+                .then(/** @param {string} html */ async (html) => {
                     // A Blob is used in order to allow cross-frame access without changing
                     // the origin of the frame.
                     this.iframe.src = URL.createObjectURL(
@@ -698,6 +696,9 @@ mw.loader.using([
 
                 for (const part of mwData.parts) {
                     if (part.template !== undefined) {
+                        if (part.template.target.href == null)
+                            // Parser function.
+                            continue;
                         // This is a template. Time to identify what template.
                         for (const alias of copiedTemplateAliases) {
                             if (part.template.target.href.toLowerCase().includes(alias)) {
@@ -734,7 +735,7 @@ mw.loader.using([
                 ["afterend", (() => {
                     const banners = this.document.querySelectorAll(".wpb[data-mw]");
                     return banners.item(banners.length - 1);
-                })],
+                })()],
                 ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterend", (() => {
                     const boxes = this.document.querySelectorAll(
@@ -743,11 +744,7 @@ mw.loader.using([
                     // Still returns `null` even if out of range.
                     return boxes.item(boxes.length - 1);
                 })()],
-                [
-                    this.document.querySelector("section[data-mw-section-id=\"1\"]") ?
-                        "beforeend" : "afterbegin",
-                    this.document.querySelector("section[data-mw-section-id=\"0\"]")
-                ]
+                ["afterbegin", this.document.querySelector("section[data-mw-section-id=\"0\"]")]
             ];
 
             for (const spot of possibleSpots) {
@@ -763,7 +760,6 @@ mw.loader.using([
          */
         insertNewNotice(spot) {
             let [position, element] = spot;
-            console.log(spot);
 
             if (
                 element.hasAttribute("about")
@@ -1152,10 +1148,65 @@ mw.loader.using([
         deleteButton.on("click", () => {
             copiedTemplateRow.parent.deleteRow(copiedTemplateRow);
         });
+        const copyButton = new OO.ui.ButtonWidget({
+            icon: "quotes",
+            title: "Copy attribution edit summary",
+            framed: false
+        });
+        copyButton.on("click", () => {
+            let attributionString = "Attribution: Content partially copied";
+            let lacking = false;
+            if (copiedTemplateRow.from != null && copiedTemplateRow.from.length !== 0) {
+                attributionString += ` from [[${copiedTemplateRow.from}]]`;
+            } else {
+                lacking = true;
+                if (copiedTemplateRow.from_oldid != null)
+                    attributionString += " from a page";
+            }
+            if (copiedTemplateRow.from_oldid != null) {
+                attributionString += ` as of revision [[Special:Diff/${
+                    copiedTemplateRow.from_oldid
+                }|${
+                    copiedTemplateRow.from_oldid
+                }]]`;
+            }
+            if (copiedTemplateRow.to_diff != null || copiedTemplateRow.to_oldid != null) {
+                // Shifting will ensure that `to_oldid` will be used if `to_diff` is missing.
+                const diffPart1 = copiedTemplateRow.to_oldid || copiedTemplateRow.to_diff;
+                const diffPart2 = copiedTemplateRow.to_diff || copiedTemplateRow.to_oldid;
+
+                attributionString += ` with [[Special:Diff/${
+                    diffPart1 === diffPart2 ? diffPart1 : `${diffPart1}/${diffPart2}`
+                }|this edit]]`;
+            }
+            if (copiedTemplateRow.from != null && copiedTemplateRow.from.length !== 0) {
+                attributionString += `; refer to [[Special:PageHistory/${
+                    copiedTemplateRow.from
+                }|page history]] for additional attribution`;
+            }
+            attributionString += ".";
+
+            navigator.clipboard.writeText(
+                attributionString
+            ).then(function () {
+                if (lacking) {
+                    mw.notify(
+                        "Attribution edit summary copied to clipboard with lacking properties. Ensure that `from` is supplied.",
+                        { title: "{{copied}} Template Editor", type: "warn" }
+                    );
+                } else {
+                    mw.notify(
+                        "Attribution edit summary copied to clipboard.",
+                        { title: "{{copied}} Template Editor" }
+                    );
+                }
+            });
+        });
         buttonSet.style.float = "right";
         buttonSet.style.position = "absolute";
         buttonSet.style.top = "0.5em";
         buttonSet.style.right = "0.5em";
+        buttonSet.appendChild(copyButton.$element[0]);
         buttonSet.appendChild(deleteButton.$element[0]);
 
         this.layout = new OO.ui.FieldsetLayout({
@@ -1206,6 +1257,11 @@ mw.loader.using([
             }),
             toggle: new OO.ui.ToggleSwitchWidget()
         };
+
+        const diffConvert = new OO.ui.ButtonWidget({
+            label: "Convert"
+        });
+
         this.fieldLayouts = {
             from: new OO.ui.FieldLayout(this.inputs.from, {
                 label: "Page copied from",
@@ -1220,7 +1276,7 @@ mw.loader.using([
             to: new OO.ui.FieldLayout(this.inputs.to, {
                 label: "Page copied to",
                 align: "top",
-                help: "This is thee page where the content was copied into."
+                help: "This is the page where the content was copied into."
             }),
             to_diff: new OO.ui.FieldLayout(this.inputs.to_diff, {
                 label: "Revision ID",
@@ -1234,7 +1290,7 @@ mw.loader.using([
                 align: "left",
                 help: "The ID of the revision before any content was copied. This can be omitted unless multiple revisions copied content into the page."
             }),
-            diff: new OO.ui.FieldLayout(this.inputs.diff, {
+            diff: new OO.ui.ActionFieldLayout(this.inputs.diff, diffConvert, {
                 label: "URL to diff",
                 align: "inline",
                 help: new OO.ui.HtmlSnippet(
@@ -1265,13 +1321,45 @@ mw.loader.using([
             this.fieldLayouts.afd
         ];
 
+        // Self-imposed deprecation notice in order to steer away from plain URL diff links.
+        // This will, in the long term, make it easier to parse out and edit {{copied}} templates.
+        const diffDeprecatedNotice = new OO.ui.HtmlSnippet(
+            "The <code>to_diff</code> and <code>to_oldid</code> parameters are preferred in favor of the <code>diff</code> parameter."
+        );
+
         // Hide advanced options
         advancedOptions.forEach(e => {
             e.toggle(false);
         });
         // ...except for `diff` if it's supplied (legacy reasons)
-        if (copiedTemplateRow.diff)
+        if (copiedTemplateRow.diff) {
             this.fieldLayouts.diff.toggle(true);
+            this.fieldLayouts.diff.setWarnings([diffDeprecatedNotice]);
+        } else {
+            diffConvert.setDisabled(true);
+        }
+        this.inputs.diff.on("change", () => {
+            if (this.inputs.diff.getValue().length > 0) {
+                try {
+                    // Check if this is an English Wikipedia diff URL.
+                    if (new URL(this.inputs.diff.getValue(), window.location.href).hostname === "en.wikipedia.org") {
+                        // Prefer `to_oldid` and `to_diff`
+                        this.fieldLayouts.diff.setWarnings([diffDeprecatedNotice]);
+                        diffConvert.setDisabled(false);
+                    } else {
+                        this.fieldLayouts.diff.setWarnings([]);
+                        diffConvert.setDisabled(true);
+                    }
+                } catch (e) {
+                    // Clear warnings just to be safe.
+                    this.fieldLayouts.diff.setWarnings([]);
+                    diffConvert.setDisabled(true);
+                }
+            } else {
+                this.fieldLayouts.diff.setWarnings([]);
+                diffConvert.setDisabled(true);
+            }
+        });
 
         this.inputs.merge.on("change", (value) => {
             this.inputs.afd.setDisabled(!value);
@@ -1310,6 +1398,85 @@ mw.loader.using([
             if (input instanceof OO.ui.TextInputWidget)
                 input.setValidityFlag();
         }
+
+        diffConvert.on("click", () => {
+            const diff = this.inputs.diff;
+            const value = diff.getValue();
+            try {
+                const url = new URL(value, window.location.href)
+                if (value) {
+                    if (url.hostname === "en.wikipedia.org") {
+                        let oldid = url.searchParams.get("oldid");
+                        let diff = url.searchParams.get("diff");
+                        const title = url.searchParams.get("title");
+
+                        const diffSpecialPageCheck =
+                            /\/wiki\/Special:Diff\/(prev|next|\d+)(?:\/(prev|next|\d+))?/.exec(url.pathname);
+                        if (diffSpecialPageCheck != null) {
+                            if (
+                                diffSpecialPageCheck[1] != null
+                                && diffSpecialPageCheck[2] == null
+                            ) {
+                                diff = diffSpecialPageCheck[1];
+                            } else if (
+                                diffSpecialPageCheck[1] != null
+                                && diffSpecialPageCheck[2] != null
+                            ) {
+                                oldid = diffSpecialPageCheck[1];
+                                diff = diffSpecialPageCheck[2];
+                            }
+                        }
+
+                        const confirmProcess = new OO.ui.Process();
+                        for (const [rowname, value] of [
+                            ["to_oldid", oldid],
+                            ["to_diff", diff],
+                            ["to", title]
+                        ]) {
+                            if (value == null) continue;
+                            if (
+                                copiedTemplateRow[rowname] != null
+                                && copiedTemplateRow[rowname].length > 0
+                                && copiedTemplateRow[rowname] !== value
+                            ) {
+                                confirmProcess.next(async () => {
+                                    const confirmPromise = OO.ui.confirm(
+                                        `The current value of ${
+                                            rowname
+                                        }, "${
+                                            copiedTemplateRow[rowname]
+                                        }", will be replaced with "${
+                                            value
+                                        }". Replace?`
+                                    );
+                                    confirmPromise.done((confirmed) => {
+                                        if (confirmed)
+                                            this.inputs[rowname].setValue(value);
+                                    });
+                                    return confirmPromise;
+                                });
+                            } else {
+                                this.inputs[rowname].setValue(value);
+                            }
+                        }
+                        confirmProcess.next(() => {
+                            copiedTemplateRow.parent.save();
+                            this.inputs.diff.setValue("");
+
+                            if (!this.inputs.toggle.getValue()) {
+                                this.fieldLayouts.diff.toggle(false);
+                            }
+                        });
+                        confirmProcess.execute();
+                    } else {
+                        console.warn("Attempted to convert a non-enwiki page.");
+                    }
+                }
+            } catch (e) {
+                console.error("Cannot convert `diff` parameter to URL.", e);
+                OO.ui.alert("Cannot convert `diff` parameter to URL. See your browser console for more details.");
+            }
+        });
 
         // Append
         this.layout.$element.append(buttonSet);
@@ -1675,23 +1842,25 @@ mw.loader.using([
 
     // Only run if this script wasn't loaded using the loader.
     if (!window.CopiedTemplateEditor || !window.CopiedTemplateEditor.loader) {
-        // Find all {{copied}} templates and append our special button.
-        // This runs on the actual document, not the Parsoid document.
-        document.querySelectorAll(".copiednotice > tbody > tr").forEach(e => {
-            const startButton = new OO.ui.ButtonWidget({
-                icon: "edit",
-                title: "Modify {{copied}} notices for this page",
-                label: "Modify copied notices for this page"
-            }).setInvisibleLabel(true);
-            window.CopiedTemplateEditor.startButtons.push(startButton);
-            const td = document.createElement("td");
-            td.style.paddingRight = "0.9em";
-            td.appendChild(startButton.$element[0]);
-            e.appendChild(td);
+        mw.hook("wikipage.content").add(() => {
+            // Find all {{copied}} templates and append our special button.
+            // This runs on the actual document, not the Parsoid document.
+            document.querySelectorAll(".copiednotice > tbody > tr").forEach(e => {
+                const startButton = new OO.ui.ButtonWidget({
+                    icon: "edit",
+                    title: "Modify {{copied}} notices for this page",
+                    label: "Modify copied notices for this page"
+                }).setInvisibleLabel(true);
+                window.CopiedTemplateEditor.startButtons.push(startButton);
+                const td = document.createElement("td");
+                td.style.paddingRight = "0.9em";
+                td.appendChild(startButton.$element[0]);
+                e.appendChild(td);
 
-            startButton.on("click", () => {
-                window.CopiedTemplateEditor.toggleButtons(false);
-                openEditDialog();
+                startButton.on("click", () => {
+                    window.CopiedTemplateEditor.toggleButtons(false);
+                    openEditDialog();
+                });
             });
         });
     }

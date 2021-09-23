@@ -29,6 +29,7 @@ mw.loader.using([
         return;
     }
 
+    // noinspection JSUnusedGlobalSymbols
     window.CopiedTemplateEditor = {
         /**
          * Whether CTE was loaded through the CTE loader or not.
@@ -61,22 +62,24 @@ mw.loader.using([
         mw.loader.load(scriptPath);
     }
 
-    // Find all {{copied}} templates and append our special button.
-    document.querySelectorAll(".copiednotice > tbody > tr").forEach(function(e) {
-        var startButton = new OO.ui.ButtonWidget({
-            icon: "edit",
-            title: "Modify {{copied}} notices for this page",
-            label: "Modify copied notices for this page"
-        }).setInvisibleLabel(true);
-        window.CopiedTemplateEditor.startButtons.push(startButton);
-        var td = document.createElement("td");
-        td.style.paddingRight = "0.9em";
-        td.appendChild(startButton.$element[0]);
-        e.appendChild(td);
+    mw.hook("wikipage.content").add(() => {
+        // Find all {{copied}} templates and append our special button.
+        document.querySelectorAll(".copiednotice > tbody > tr").forEach(function(e) {
+            var startButton = new OO.ui.ButtonWidget({
+                icon: "edit",
+                title: "Modify {{copied}} notices for this page",
+                label: "Modify copied notices for this page"
+            }).setInvisibleLabel(true);
+            window.CopiedTemplateEditor.startButtons.push(startButton);
+            var td = document.createElement("td");
+            td.style.paddingRight = "0.9em";
+            td.appendChild(startButton.$element[0]);
+            e.appendChild(td);
 
-        startButton.on("click", function() {
-            window.CopiedTemplateEditor.toggleButtons(false);
-            openEditDialog();
+            startButton.on("click", function() {
+                window.CopiedTemplateEditor.toggleButtons(false);
+                openEditDialog();
+            });
         });
     });
 
