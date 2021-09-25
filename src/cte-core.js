@@ -1183,9 +1183,9 @@ mw.loader.using([
                 }|this edit]]`;
             }
             if (copiedTemplateRow.from != null && copiedTemplateRow.from.length !== 0) {
-                attributionString += `; refer to [[Special:PageHistory/${
+                attributionString += `; refer to that page's [[Special:PageHistory/${
                     copiedTemplateRow.from
-                }|page history]] for additional attribution`;
+                }|edit history]] for additional attribution`;
             }
             attributionString += ".";
 
