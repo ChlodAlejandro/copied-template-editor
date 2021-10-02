@@ -1849,6 +1849,10 @@ mw.loader.using([
             // Find all {{copied}} templates and append our special button.
             // This runs on the actual document, not the Parsoid document.
             document.querySelectorAll(".copiednotice > tbody > tr").forEach(e => {
+                if (e.classList.contains("cte-upgraded"))
+                    return;
+                e.classList.add("cte-upgraded");
+
                 const startButton = new OO.ui.ButtonWidget({
                     icon: "edit",
                     title: "Modify {{copied}} notices for this page",

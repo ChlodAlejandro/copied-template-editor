@@ -65,6 +65,10 @@ mw.loader.using([
     mw.hook("wikipage.content").add(() => {
         // Find all {{copied}} templates and append our special button.
         document.querySelectorAll(".copiednotice > tbody > tr").forEach(function(e) {
+            if (e.classList.contains("cte-upgraded"))
+                return;
+            e.classList.add("cte-upgraded");
+
             var startButton = new OO.ui.ButtonWidget({
                 icon: "edit",
                 title: "Modify {{copied}} notices for this page",
