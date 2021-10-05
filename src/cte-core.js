@@ -42,17 +42,23 @@ mw.loader.using([
             background-color: #ddf7ff;
             padding: 16px;
         }
+        .cte-fieldset-date {
+            float: left;
+            margin-top: 10px !important;
+        }
         .cte-fieldset-advswitch {
             float: right;
         }
-        .cte-fieldset-advswitch .oo-ui-fieldLayout-field {
+        .cte-fieldset-advswitch .oo-ui-fieldLayout-field,
+        .cte-fieldset-date .oo-ui-fieldLayout-field {
             display: inline-block !important;
         }
         .cte-fieldset-advswitch .oo-ui-fieldLayout-header {
             display: inline-block !important;
             margin-right: 16px;
         }
-        .cte-page-template {
+        .cte-page-template, 
+        .cte-fieldset-date.oo-ui-actionFieldLayout.oo-ui-fieldLayout-align-top .oo-ui-fieldLayout-header {
             padding-bottom: 0 !important;
         }
         .cte-page-row {
@@ -905,14 +911,6 @@ mw.loader.using([
         // BUTTONS
 
         const buttonSet = document.createElement("div");
-        const addButton = new OO.ui.ButtonWidget({
-            icon: "add",
-            title: "Add new entry",
-            framed: false
-        });
-        addButton.on("click", () => {
-            copiedTemplate.addRow(new CopiedTemplateRow({}, copiedTemplate));
-        });
         const mergeButton = new OO.ui.ButtonWidget({
             icon: "tableMergeCells",
             title: "Merge",
@@ -940,10 +938,16 @@ mw.loader.using([
                 copiedTemplate.destroy();
             }
         });
+        const addButton = new OO.ui.ButtonWidget({
+            label: "Add row"
+        });
+        addButton.on("click", () => {
+            copiedTemplate.addRow(new CopiedTemplateRow({}, copiedTemplate));
+        });
         buttonSet.style.float = "right";
-        buttonSet.appendChild(addButton.$element[0]);
         buttonSet.appendChild(mergeButton.$element[0]);
         buttonSet.appendChild(deleteButton.$element[0]);
+        buttonSet.appendChild(addButton.$element[0]);
 
         const mergePanel = new OO.ui.FieldsetLayout({
             icon: "tableMergeCells",
@@ -1036,9 +1040,8 @@ mw.loader.using([
                         this.preview.lastUpdate = start;
 
                         // Trigger collapsibles
-                        $(previewPanel).children(".collapsible").each((i, e) => {
-                            $(e).makeCollapsible();
-                        })
+                        // noinspection JSCheckFunctionSignatures
+                        $(previewPanel).find(".collapsible").makeCollapsible();
                     }
                 });
             }
@@ -1258,12 +1261,24 @@ mw.loader.using([
                 // Prevent people from adding the WP:AFD prefix.
                 validate: /^(?!W(iki)?p(edia)?:(A(rticles)?[ _]?f(or)?[ _]?d(eletion)?\/)).+/gi
             }),
+            date: new OO.ui.TextInputWidget({
+                labelPosition: "before",
+                label: "Date",
+                value: copiedTemplateRow.date,
+                validate: (value) => {
+                    return value.length === 0 || new Date(value).toString() !== "Invalid Date";
+                }
+            }),
             toggle: new OO.ui.ToggleSwitchWidget()
         };
 
         const diffConvert = new OO.ui.ButtonWidget({
             label: "Convert"
         });
+        // const dateButton = new OO.ui.PopupButtonWidget({
+        //     icon: "calendar",
+        //     title: "Select a date"
+        // });
 
         this.fieldLayouts = {
             from: new OO.ui.FieldLayout(this.inputs.from, {
@@ -1309,6 +1324,10 @@ mw.loader.using([
                 label: "AfD",
                 align: "left",
                 help: "The AfD page if the copy was made due to an AfD closed as \"merge\"."
+            }),
+            date: new OO.ui.FieldLayout(this.inputs.date, {
+                align: "inline",
+                classes: ["cte-fieldset-date"]
             }),
             toggle: new OO.ui.FieldLayout(this.inputs.toggle, {
                 label: "Advanced",
