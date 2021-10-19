@@ -733,26 +733,26 @@ mw.loader.using([
          *         A spot to place the template, `null` if a spot could not be found.
          */
         findCopiedNoticeSpot() {
+            /**
+             * Returns the last item of an HTMLElement array.
+             * @param {NodeListOf<HTMLElement>} array The array to get the last element from
+             * @returns {HTMLElement}
+             */
+            function last(array) { return array[array.length - 1]; }
+
             /** @type {[InsertPosition, HTMLElement|null][]} */
             const possibleSpots = [
-                ["afterend", (() => {
-                    const notices = this.document.querySelectorAll(".copiednotice[data-mw]");
-                    // Still returns `null` even if out of range.
-                    return notices.item(notices.length - 1);
-                })()],
-                ["afterend", this.document.querySelector(".wpbs[data-mw]")],
-                ["afterend", (() => {
-                    const banners = this.document.querySelectorAll(".wpb[data-mw]");
-                    return banners.item(banners.length - 1);
-                })()],
+                ["afterend", last(this.document.querySelectorAll(".copiednotice[data-mw]"))],
+                ["afterend", last(
+                    this.document.querySelectorAll(`[about="${
+                        this.document.querySelector(".wpbs").getAttribute("about")
+                    }"]`)
+                )],
+                ["afterend", last(this.document.querySelectorAll(".wpb[data-mw]"))],
                 ["afterend", this.document.querySelector(".talkheader[data-mw]")],
-                ["afterend", (() => {
-                    const boxes = this.document.querySelectorAll(
-                        "[data-mw-section-id=\"0\"] .tmbox[data-mw]:not(.mbox-small)"
-                    );
-                    // Still returns `null` even if out of range.
-                    return boxes.item(boxes.length - 1);
-                })()],
+                ["afterend", last(this.document.querySelectorAll(
+                    "[data-mw-section-id=\"0\"] .tmbox[data-mw]:not(.mbox-small)"
+                ))],
                 ["afterbegin", this.document.querySelector("section[data-mw-section-id=\"0\"]")]
             ];
 
