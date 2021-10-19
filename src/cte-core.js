@@ -1748,30 +1748,40 @@ mw.loader.using([
                 break;
             case "reset":
                 process.next(function () {
-                    parsoidDocument.reloadFrame().then(() => {
-                        this.layout.clearPages();
-                        this.rebuildPages.call(this);
+                    return OO.ui.confirm(
+                        "This will reset all changes. Proceed?"
+                    ).done((confirmed) => {
+                        if (confirmed) {
+                            parsoidDocument.reloadFrame().then(() => {
+                                this.layout.clearPages();
+                                this.rebuildPages.call(this);
+                            });
+                        }
                     });
                 }, this);
                 break;
             case "merge":
                 process.next(function () {
                     const notices = parsoidDocument.copiedNotices.length;
-                    return OO.ui.confirm(
-                        `You are about to merge ${
-                            notices
-                        } template${notices !== 1 ? "s" : ""}. Are you sure?`
-                    ).done((confirmed) => {
-                        if (confirmed) {
-                            const pivot = parsoidDocument.copiedNotices[0];
-                            while (parsoidDocument.copiedNotices.length > 1) {
-                                let template = parsoidDocument.copiedNotices[0];
-                                if (template === pivot)
-                                    template = parsoidDocument.copiedNotices[1];
-                                pivot.merge(template, { delete: true });
+                    if (notices > 1) {
+                        return OO.ui.confirm(
+                            `You are about to merge ${
+                                notices
+                            } template${notices !== 1 ? "s" : ""}. Are you sure?`
+                        ).done((confirmed) => {
+                            if (confirmed) {
+                                const pivot = parsoidDocument.copiedNotices[0];
+                                while (parsoidDocument.copiedNotices.length > 1) {
+                                    let template = parsoidDocument.copiedNotices[0];
+                                    if (template === pivot)
+                                        template = parsoidDocument.copiedNotices[1];
+                                    pivot.merge(template, { delete: true });
+                                }
                             }
-                        }
-                    });
+                        });
+                    } else {
+                        return OO.ui.alert("There are no templates to merge.");
+                    }
                 }, this);
                 break;
             case "delete":
