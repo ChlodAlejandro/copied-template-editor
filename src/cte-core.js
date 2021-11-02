@@ -97,6 +97,8 @@ mw.loader.using([
         "template:copywithin"
     ];
 
+    const advert = "([[User:Chlod/CTE|CopiedTemplateEditor]])";
+
     // =========================== TYPE DEFINITIONS ===========================
 
     /**
@@ -176,6 +178,17 @@ mw.loader.using([
     function exitBlock(event) {
         event.preventDefault();
         return event.returnValue = undefined;
+    }
+
+    /**
+     * Converts a normal error into an OO.ui.Error for ProcessDialogs.
+     * @param {Error} error A plain error object.
+     * @param {Object} config Error configuration.
+     * @param {boolean} config.recoverable Whether or not the error is recoverable.
+     * @param {boolean} config.warning Whether or not the error is a warning.
+     */
+    function errorToOO(error, config) {
+        new OO.ui.Error(error.message, config);
     }
 
     // =============================== CLASSES ================================
@@ -658,6 +671,25 @@ mw.loader.using([
                             res();
                         });
                     });
+                })
+                .catch(async (error) => {
+                    mw.notify([
+                        (() => {
+                            const a = document.createElement("span");
+                            a.innerText = "An error occured while starting CTE: "
+                            return a;
+                        })(),
+                        (() => {
+                            const b = document.createElement("b");
+                            b.innerText = error.message;
+                            return b;
+                        })(),
+                    ], {
+                        tag: "cte-open-error",
+                        type: "error"
+                    });
+                    window.CopiedTemplateEditor.toggleButtons(true);
+                    throw error;
                 });
         }
 
@@ -1595,33 +1627,45 @@ mw.loader.using([
         {
             flags: ["primary", "progressive"],
             label: "Save",
+            title: "Save",
             action: "save"
         },
         {
             flags: ["safe", "close"],
             icon: "close",
+            label: "Close",
             title: "Close",
+            invisibleLabel: true,
             action: "close"
         },
         {
             action: "add",
             icon: "add",
-            title: "Add a template"
+            label: "Add a template",
+            title: "Add a template",
+            invisibleLabel: true
         },
         {
             action: "merge",
             icon: "tableMergeCells",
-            title: "Merge all templates"
+            label: "Merge all templates",
+            title: "Merge all templates",
+            invisibleLabel: true
         },
         {
             action: "reset",
             icon: "reload",
-            title: "Reset everything"
+            label: "Reset everything",
+            title: "Reset everything",
+            invisibleLabel: true,
+            flags: ["destructive"]
         },
         {
             action: "delete",
             icon: "trash",
+            label: "Delete all templates",
             title: "Delete all templates",
+            invisibleLabel: true,
             flags: ["destructive"]
         }
     ];
@@ -1700,7 +1744,7 @@ mw.loader.using([
         process.next(function () {
             return parsoidDocument.loadFrame(
                 new mw.Title(mw.config.get("wgPageName")).getTalkPage().getPrefixedText()
-            );
+            ).catch(errorToOO);
         });
         process.next(() => {
             return this.rebuildPages.call(this);
@@ -1733,8 +1777,8 @@ mw.loader.using([
                         utf8: "true",
                         title: parsoidDocument.page,
                         text: await parsoidDocument.toWikitext(),
-                        summary: `${action} {{[[Template:Copied|copied]]}} templates ([[User:Chlod/CTE|CopiedTemplateEditor]])`
-                    });
+                        summary: `${action} {{[[Template:Copied|copied]]}} templates ${advert}`
+                    }).catch(errorToOO);
                 }, this);
                 process.next(function () {
                     window.removeEventListener("beforeunload", exitBlock);

@@ -59,7 +59,26 @@ mw.loader.using([
 
         // Load the script and blastoff!
         // The core script uses ES6, so it has to be loaded through ResourceLoader.
-        mw.loader.load(scriptPath);
+        mw.loader.getScript(scriptPath)
+            .catch(function (error) {
+                console.error(error);
+                mw.notify([
+                    (() => {
+                        const a = document.createElement("span");
+                        a.innerText = "An error occured while starting CTE: "
+                        return a;
+                    })(),
+                    (() => {
+                        const b = document.createElement("b");
+                        b.innerText = error.message;
+                        return b;
+                    })(),
+                ], {
+                    tag: "cte-open-error",
+                    type: "error"
+                });
+                window.CopiedTemplateEditor.toggleButtons(true);
+            });
     }
 
     mw.hook("wikipage.content").add(() => {
