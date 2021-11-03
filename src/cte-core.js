@@ -20,6 +20,7 @@ mw.loader.using([
     "mediawiki.util",
     "mediawiki.api",
     "mediawiki.Title",
+    "mediawiki.widgets",
     "mediawiki.widgets.datetime",
     "jquery.makeCollapsible"
 ], async function() {
