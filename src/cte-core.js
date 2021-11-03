@@ -992,7 +992,9 @@ mw.loader.using([
             label: "Add row"
         });
         addButton.on("click", () => {
-            copiedTemplate.addRow(new CopiedTemplateRow({}, copiedTemplate));
+            copiedTemplate.addRow(new CopiedTemplateRow({
+                to: new mw.Title(parsoidDocument.page).getSubjectPage().getPrefixedText()
+            }, copiedTemplate));
         });
         buttonSet.style.float = "right";
         buttonSet.appendChild(mergeButton.$element[0]);
@@ -1265,6 +1267,10 @@ mw.loader.using([
         buttonSet.appendChild(copyButton.$element[0]);
         buttonSet.appendChild(deleteButton.$element[0]);
 
+        const parsedDate = copiedTemplateRow.date == null || copiedTemplateRow.date.trim().length === 0 ?
+            undefined : (!isNaN(new Date(copiedTemplateRow.date.trim() + " UTC").getTime()) ?
+                new Date(copiedTemplateRow.date.trim() + " UTC") : null)
+
         this.layout = new OO.ui.FieldsetLayout({
             icon: "parameter",
             label: "Template row",
@@ -1320,8 +1326,7 @@ mw.loader.using([
                 calendar: null,
                 icon: "calendar",
                 clearable: true,
-                value: copiedTemplateRow.date ?
-                    new Date(copiedTemplateRow.date.trim() + " UTC") : null
+                value: parsedDate
             }),
             toggle: new OO.ui.ToggleSwitchWidget()
         };
@@ -1397,6 +1402,12 @@ mw.loader.using([
                 classes: ["cte-fieldset-advswitch"]
             })
         };
+
+        if (parsedDate === null) {
+            this.fieldLayouts.date.setWarnings([
+                `The previous date value, "${copiedTemplateRow.date}", was not a valid date.`
+            ]);
+        }
 
         const advancedOptions = [
             this.fieldLayouts.to_oldid,
@@ -1475,7 +1486,10 @@ mw.loader.using([
                 if (input instanceof OO.ui.CheckboxInputWidget) {
                     copiedTemplateRow[field] = value ? "yes" : "";
                 } else if (input instanceof mw.widgets.datetime.DateTimeInputWidget) {
-                    copiedTemplateRow[field] = value.replace(/T.+/g, "")
+                    copiedTemplateRow[field] = value.replace(/T.+/g, "");
+                    if (value.length > 0) {
+                        this.fieldLayouts[field].setWarnings([]);
+                    }
                 } else {
                     copiedTemplateRow[field] = value;
                 }
