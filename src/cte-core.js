@@ -20,6 +20,7 @@ mw.loader.using([
     "mediawiki.util",
     "mediawiki.api",
     "mediawiki.Title",
+    "mediawiki.widgets.datetime",
     "jquery.makeCollapsible"
 ], async function() {
 
@@ -41,6 +42,7 @@ mw.loader.using([
             border: 1px solid gray;
             background-color: #ddf7ff;
             padding: 16px;
+            min-width: 200px;
         }
         .cte-fieldset-date {
             float: left;
@@ -56,6 +58,22 @@ mw.loader.using([
         .cte-fieldset-advswitch .oo-ui-fieldLayout-header {
             display: inline-block !important;
             margin-right: 16px;
+        }
+        .cte-fieldset-date .oo-ui-fieldLayout-field {
+            width: 100%;
+        }
+        .cte-fieldset-date .oo-ui-iconElement-icon {
+            left: 0.5em;
+            width: 1em;
+            height: 1em;
+            top: 0.4em;
+        }
+        .cte-fieldset-date .mw-widgets-datetime-dateTimeInputWidget-editField {
+            min-width: 2.5ch !important;
+        }
+        .cte-fieldset-date :not(.mw-widgets-datetime-dateTimeInputWidget-empty) >
+        .mw-widgets-datetime-dateTimeInputWidget-handle {
+            padding-right: 0;
         }
         .cte-page-template, 
         .cte-fieldset-date.oo-ui-actionFieldLayout.oo-ui-fieldLayout-align-top .oo-ui-fieldLayout-header {
@@ -1253,7 +1271,8 @@ mw.loader.using([
             classes: [ "cte-fieldset" ]
         });
         this.inputs = {
-            from: new OO.ui.TextInputWidget({
+            from: new mw.widgets.TitleInputWidget({
+                $overlay: parent["$overlay"],
                 placeholder: "Page A",
                 value: copiedTemplateRow.from,
                 validate: /^.+$/g
@@ -1263,7 +1282,8 @@ mw.loader.using([
                 value: copiedTemplateRow.from_oldid,
                 validate: /^\d*$/
             }),
-            to: new OO.ui.TextInputWidget({
+            to: new mw.widgets.TitleInputWidget({
+                $overlay: parent["$overlay"],
                 placeholder: "Page B",
                 value: copiedTemplateRow.to
             }),
@@ -1293,13 +1313,15 @@ mw.loader.using([
                 // Prevent people from adding the WP:AFD prefix.
                 validate: /^(?!W(iki)?p(edia)?:(A(rticles)?[ _]?f(or)?[ _]?d(eletion)?\/)).+/gi
             }),
-            date: new OO.ui.TextInputWidget({
-                labelPosition: "before",
-                label: "Date",
-                value: copiedTemplateRow.date,
-                validate: (value) => {
-                    return value.length === 0 || new Date(value).toString() !== "Invalid Date";
-                }
+            date: new mw.widgets.datetime.DateTimeInputWidget({
+                // calendar: {
+                //     $overlay: parent["$overlay"]
+                // },
+                calendar: null,
+                icon: "calendar",
+                clearable: true,
+                value: copiedTemplateRow.date ?
+                    new Date(copiedTemplateRow.date.trim() + " UTC") : null
             }),
             toggle: new OO.ui.ToggleSwitchWidget()
         };
@@ -1314,21 +1336,25 @@ mw.loader.using([
 
         this.fieldLayouts = {
             from: new OO.ui.FieldLayout(this.inputs.from, {
+                $overlay: parent["$overlay"],
                 label: "Page copied from",
                 align: "top",
                 help: "This is the page from which the content was copied from."
             }),
             from_oldid: new OO.ui.FieldLayout(this.inputs.from_oldid, {
+                $overlay: parent["$overlay"],
                 label: "Revision ID",
                 align: "left",
                 help: "The specific revision ID at the time that the content was copied, if known."
             }),
             to: new OO.ui.FieldLayout(this.inputs.to, {
+                $overlay: parent["$overlay"],
                 label: "Page copied to",
                 align: "top",
                 help: "This is the page where the content was copied into."
             }),
             to_diff: new OO.ui.FieldLayout(this.inputs.to_diff, {
+                $overlay: parent["$overlay"],
                 label: "Revision ID",
                 align: "left",
                 help: "The specific revision ID of the revision that copied content into the target page. If the copying spans multiple revisions, this is the ID of the last revision that copies content into the page."
@@ -1336,11 +1362,13 @@ mw.loader.using([
 
             // Advanced options
             to_oldid: new OO.ui.FieldLayout(this.inputs.to_oldid, {
+                $overlay: parent["$overlay"],
                 label: "Starting revision ID",
                 align: "left",
                 help: "The ID of the revision before any content was copied. This can be omitted unless multiple revisions copied content into the page."
             }),
             diff: new OO.ui.ActionFieldLayout(this.inputs.diff, diffConvert, {
+                $overlay: parent["$overlay"],
                 label: "URL to diff",
                 align: "inline",
                 help: new OO.ui.HtmlSnippet(
@@ -1348,11 +1376,13 @@ mw.loader.using([
                 )
             }),
             merge: new OO.ui.FieldLayout(this.inputs.merge, {
+                $overlay: parent["$overlay"],
                 label: "Merged",
                 align: "inline",
                 help: "Whether copying was done from merging two pages."
             }),
             afd: new OO.ui.FieldLayout(this.inputs.afd, {
+                $overlay: parent["$overlay"],
                 label: "AfD",
                 align: "left",
                 help: "The AfD page if the copy was made due to an AfD closed as \"merge\"."
@@ -1444,6 +1474,8 @@ mw.loader.using([
             input.on("change", (value) => {
                 if (input instanceof OO.ui.CheckboxInputWidget) {
                     copiedTemplateRow[field] = value ? "yes" : "";
+                } else if (input instanceof mw.widgets.datetime.DateTimeInputWidget) {
+                    copiedTemplateRow[field] = value.replace(/T.+/g, "")
                 } else {
                     copiedTemplateRow[field] = value;
                 }
