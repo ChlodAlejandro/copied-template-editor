@@ -794,11 +794,12 @@ mw.loader.using([
             /** @type {[InsertPosition, HTMLElement|null][]} */
             const possibleSpots = [
                 ["afterend", last(this.document.querySelectorAll(".copiednotice[data-mw]"))],
-                ["afterend", last(
+                ["afterend", this.document.querySelector(".wpbs") ? last(
                     this.document.querySelectorAll(`[about="${
-                        this.document.querySelector(".wpbs").getAttribute("about")
+                        this.document.querySelector(".wpbs")
+                            .getAttribute("about")
                     }"]`)
-                )],
+                ) : null],
                 ["afterend", last(this.document.querySelectorAll(".wpb[data-mw]"))],
                 ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterend", last(this.document.querySelectorAll(
