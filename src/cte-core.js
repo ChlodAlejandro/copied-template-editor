@@ -60,9 +60,6 @@ mw.loader.using([
             display: inline-block !important;
             margin-right: 16px;
         }
-        .cte-fieldset-date .oo-ui-fieldLayout-field {
-            width: 100%;
-        }
         .cte-fieldset-date .oo-ui-iconElement-icon {
             left: 0.5em;
             width: 1em;
@@ -794,6 +791,7 @@ mw.loader.using([
             /** @type {[InsertPosition, HTMLElement|null][]} */
             const possibleSpots = [
                 ["afterend", last(this.document.querySelectorAll(".copiednotice[data-mw]"))],
+                ["afterend", last(this.document.querySelectorAll(".t-todo"))],
                 ["afterend", this.document.querySelector(".wpbs") ? last(
                     this.document.querySelectorAll(`[about="${
                         this.document.querySelector(".wpbs")
@@ -801,10 +799,10 @@ mw.loader.using([
                     }"]`)
                 ) : null],
                 ["afterend", last(this.document.querySelectorAll(".wpb[data-mw]"))],
-                ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterend", last(this.document.querySelectorAll(
-                    "[data-mw-section-id=\"0\"] .tmbox[data-mw]:not(.mbox-small)"
+                    "[data-mw-section-id=\"0\"] .tmbox[data-mw]:not(.mbox-small):not(.talkheader[data-mw])"
                 ))],
+                ["afterend", this.document.querySelector(".talkheader[data-mw]")],
                 ["afterbegin", this.document.querySelector("section[data-mw-section-id=\"0\"]")]
             ];
 
@@ -1271,7 +1269,10 @@ mw.loader.using([
 
         const parsedDate = copiedTemplateRow.date == null || copiedTemplateRow.date.trim().length === 0 ?
             undefined : (!isNaN(new Date(copiedTemplateRow.date.trim() + " UTC").getTime()) ?
-                new Date(copiedTemplateRow.date.trim() + " UTC") : null)
+                (new Date(copiedTemplateRow.date.trim() + " UTC")) : (
+                    !isNaN(new Date(copiedTemplateRow.date.trim()).getTime()) ?
+                        new Date(copiedTemplateRow.date.trim()) : null
+                ))
 
         this.layout = new OO.ui.FieldsetLayout({
             icon: "parameter",
