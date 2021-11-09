@@ -1992,6 +1992,12 @@ mw.loader.using([
                 });
             });
         });
+
+        // Query parameter-based autostart
+        if (/[?&]cte-autostart(=(1|yes|true|on)?(&|$)|$)/.test(window.location.search)) {
+            window.CopiedTemplateEditor.toggleButtons(false);
+            openEditDialog();
+        }
     }
 
     document.dispatchEvent(new Event("cte:load"));
