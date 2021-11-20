@@ -27,7 +27,7 @@
         "wikipedia-userscript"
     ],
     "author": "Chlod Alejandro <chlod@chlod.net>",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "bugs": {
         "url": "https://github.com/ChlodAlejandro/copied-template-editor/issues"
     },
