@@ -1489,7 +1489,9 @@ mw.loader.using([
                 if (input instanceof OO.ui.CheckboxInputWidget) {
                     copiedTemplateRow[field] = value ? "yes" : "";
                 } else if (input instanceof mw.widgets.datetime.DateTimeInputWidget) {
-                    copiedTemplateRow[field] = value.replace(/T.+/g, "");
+                    copiedTemplateRow[field] = new Date(value).toLocaleDateString("en-GB", {
+                        year: "numeric", month: "long", day: "numeric"
+                    });
                     if (value.length > 0) {
                         this.fieldLayouts[field].setWarnings([]);
                     }
