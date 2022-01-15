@@ -25,6 +25,10 @@ mw.loader.using([
     "jquery.makeCollapsible"
 ], async function() {
 
+    // ============================= LIBRARIES ================================
+
+    await mw.loader.getScript("https://en.wikipedia.org/wiki/User:Chlod/Scripts/ParsoidDocument.js?action=raw&ctype=text/javascript");
+
     // =============================== STYLES =================================
 
     mw.util.addCSS(`
@@ -176,16 +180,6 @@ mw.loader.using([
      */
 
     // =========================== HELPER FUNCTIONS ===========================
-
-    /**
-     * Encodes text for an API parameter. This performs both an encodeURIComponent
-     * and a string replace to change spaces into underscores.
-     *
-     * @param {string} text
-     */
-    function encodeAPIComponent(text) {
-        return encodeURIComponent(text.replace(/ /g, "_"));
-    }
 
     /**
      * Ask for confirmation before unloading.
@@ -448,7 +442,7 @@ mw.loader.using([
                     i++;
                 } while (continueExtracting);
                 /**
-                 * All of the rows of this template.
+                 * All the rows of this template.
                  * @type {CopiedTemplateRow[]}
                  */
                 this._rows = rows;
@@ -580,62 +574,7 @@ mw.loader.using([
      * An object containing an {@link HTMLIFrameElement} along with helper functions
      * to make manipulation easier.
      */
-    class ParsoidDocument extends EventTarget {
-
-        /**
-         * The {@link Document} object of the iframe.
-         * @returns {Document}
-         */
-        get document() {
-            return this._document;
-        }
-
-        /**
-         * Whether or not the frame has been built.
-         * @returns {boolean}
-         */
-        get built() {
-            return this.iframe !== undefined;
-        }
-
-        /**
-         * Whether or not the frame has a page loaded.
-         * @returns {boolean}
-         */
-        get loaded() {
-            return this.page !== undefined;
-        }
-
-        /**
-         * Constructs and returns the {@link HTMLIFrameElement} for this class.
-         * @returns {HTMLIFrameElement}
-         */
-        buildFrame() {
-            if (this.iframe !== undefined)
-                throw "Frame already built!";
-
-            this.iframe = document.createElement("iframe");
-            this.iframe.id = "copiedhelperframe";
-            Object.assign(this.iframe.style, {
-                width: "0",
-                height: "0",
-                border: "0",
-                position: "fixed",
-                top: "0",
-                left: "0"
-            });
-
-            this.iframe.addEventListener("load", () => {
-                /**
-                 * The document of this ParsoidDocument's IFrame.
-                 * @type {Document}
-                 * @private
-                 */
-                this._document = this.iframe.contentWindow.document;
-            });
-
-            return this.iframe;
-        }
+    class CTEParsoidDocument extends ParsoidDocument {
 
         /**
          * Initializes the frame. The frame must have first been built with
@@ -648,92 +587,11 @@ mw.loader.using([
             if (this.page !== undefined)
                 throw "Page already loaded. Use `reloadFrame` to rebuilt the iframe document."
 
-            return fetch(`/api/rest_v1/page/html/${ encodeAPIComponent(page) }?stash=true`)
-                .then(data => {
-                    /**
-                     * The ETag of this iframe's content.
-                     * @type {string}
-                     */
-                    this.etag = data.headers.get("ETag");
-
-                    if (data.status === 404) {
-                        console.log("[CTE] Talk page not found. Using fallback HTML.");
-                        // Talk page doesn't exist. Load in a dummy IFrame.
-                        this.notFound = true;
-                        // A Blob is used in order to allow cross-frame access without changing
-                        // the origin of the frame.
-                        return Promise.resolve(ParsoidDocument.defaultDocument);
-                    } else {
-                        return data.text();
-                    }
-                })
-                .then(/** @param {string} html */ async (html) => {
-                    // A Blob is used in order to allow cross-frame access without changing
-                    // the origin of the frame.
-                    this.iframe.src = URL.createObjectURL(
-                        new Blob([html], {type : "text/html"})
-                    );
-                    /**
-                     * The page currently loaded.
-                     * @type {string}
-                     */
-                    this.page = page;
-                })
+            return super.loadFrame(page)
                 .then(async () => {
-                    return new Promise((res) => {
-                        this.iframe.addEventListener("load", () => {
-                            this.findCopiedNotices();
-                            this.originalNoticeCount = this.copiedNotices.length;
-                            res();
-                        });
-                    });
-                })
-                .catch(async (error) => {
-                    mw.notify([
-                        (() => {
-                            const a = document.createElement("span");
-                            a.innerText = "An error occured while starting CTE: "
-                            return a;
-                        })(),
-                        (() => {
-                            const b = document.createElement("b");
-                            b.innerText = error.message;
-                            return b;
-                        })(),
-                    ], {
-                        tag: "cte-open-error",
-                        type: "error"
-                    });
-                    window.CopiedTemplateEditor.toggleButtons(true);
-                    throw error;
+                    this.findCopiedNotices();
+                    this.originalNoticeCount = this.copiedNotices.length;
                 });
-        }
-
-        /**
-         * Destroys the frame and pops it off of the DOM (if inserted).
-         * Silently fails if the frame has not yet been built.
-         */
-        destroyFrame() {
-            if (this.iframe && this.iframe.parentElement) {
-                this.iframe.parentElement.removeChild(this.iframe);
-                this.iframe = undefined;
-            }
-        }
-
-        /**
-         * Clears the frame for a future reload.
-         */
-        resetFrame() {
-            this.page = undefined;
-        }
-
-        /**
-         * Reloads the page. This will destroy any modifications made to the document.
-         */
-        async reloadFrame() {
-            const page = this.page;
-            this.page = undefined;
-            return this.loadFrame(page);
         }
 
         findCopiedNotices() {
@@ -852,56 +710,23 @@ mw.loader.using([
             this.findCopiedNotices();
             this.dispatchEvent(new Event("insert"));
         }
-
-        /**
-         * Converts the contents of this document to wikitext.
-         * @returns {Promise<string>} The wikitext of this document.
-         */
-        async toWikitext() {
-            let target = `/api/rest_v1/transform/html/to/wikitext/${
-                encodeAPIComponent(this.page)
-            }`;
-            if (this.notFound === undefined) {
-                target += `/${+(/(\d+)$/.exec(
-                    this._document.documentElement.getAttribute("about")
-                )[1])}`;
-            }
-            return fetch(
-                target,
-                {
-                    method: "POST",
-                    headers: {
-                        "If-Match": this.notFound ? undefined : this.etag
-                    },
-                    body: (() => {
-                        const data = new FormData();
-                        data.set("html", this.document.documentElement.outerHTML);
-                        data.set("scrub_wikitext", "true");
-                        data.set("stash", "true");
-
-                        return data;
-                    })()
-                }
-            ).then(data => data.text());
-        }
-
     }
-    ParsoidDocument.addedRows = 1;
+    CTEParsoidDocument.addedRows = 1;
     /**
      * Extremely minimalist valid Parsoid document. This includes a section 0
      * element for findCopiedNoticeSpot.
      * @type {string}
      */
-    ParsoidDocument.defaultDocument =
+    CTEParsoidDocument.defaultDocument =
         "<html><body><section data-mw-section-id=\"0\"></section></body></html>";
 
     // ============================== SINGLETONS ==============================
 
     /**
-     * {@link ParsoidDocument} singleton.
-     * @type {ParsoidDocument}
+     * {@link CTEParsoidDocument} singleton.
+     * @type {CTEParsoidDocument}
      */
-    const parsoidDocument = new ParsoidDocument();
+    const parsoidDocument = new CTEParsoidDocument();
 
     /**
      * The WindowManager for this userscript.
@@ -1113,10 +938,10 @@ mw.loader.using([
 
         this.inputSet = {
             collapse: new OO.ui.CheckboxInputWidget({
-                value: copiedTemplate.collapsed
+                selected: copiedTemplate.collapsed
             }),
             small: new OO.ui.CheckboxInputWidget({
-                value: copiedTemplate.small
+                selected: copiedTemplate.small
             }),
         };
         this.fields = {
@@ -1754,6 +1579,7 @@ mw.loader.using([
     CopiedTemplateEditorDialog.prototype.rebuildPages = function () {
         const pages = [];
         for (const template of parsoidDocument.copiedNotices) {
+            console.log(template);
             if (template.rows === undefined)
                 // Likely deleted. Skip.
                 continue;
@@ -1955,7 +1781,6 @@ mw.loader.using([
         loaded: true,
         startButtons: window.CopiedTemplateEditor.startButtons || [],
         CopiedTemplate: CopiedTemplate,
-        ParsoidDocument: ParsoidDocument,
         parsoidDocument: parsoidDocument,
         openEditDialog: openEditDialog
     });
