@@ -1212,7 +1212,9 @@ mw.loader.using([
             framed: false
         });
         copyButton.on("click", () => {
-            let attributionString = "Attribution: Content partially copied";
+            let attributionString = `[[WP:PATT|Attribution]]: Content ${
+            	copiedTemplateRow.merge ? "merged" : "partially copied"
+            }`;
             let lacking = false;
             if (copiedTemplateRow.from != null && copiedTemplateRow.from.length !== 0) {
                 attributionString += ` from [[${copiedTemplateRow.from}]]`;
@@ -1320,7 +1322,7 @@ mw.loader.using([
                 value: copiedTemplateRow.afd,
                 disabled: copiedTemplateRow.merge === undefined,
                 // Prevent people from adding the WP:AFD prefix.
-                validate: /^(?!W(iki)?p(edia)?:(A(rticles)?[ _]?f(or)?[ _]?d(eletion)?\/)).+/gi
+                validate: /^((?!W(iki)?p(edia)?:(A(rticles)?[ _]?f(or)?[ _]?d(eletion)?\/)).+|$)/gi
             }),
             date: new mw.widgets.datetime.DateTimeInputWidget({
                 // calendar: {
@@ -1813,7 +1815,7 @@ mw.loader.using([
         switch (action) {
             case "save":
                 // Quick and dirty validity check.
-                if (this.content.$element[0].querySelector(".oo-ui-flaggedElement-invalid") == null) {
+                if (this.content.$element[0].querySelector(".oo-ui-flaggedElement-invalid") != null) {
                     return new OO.ui.Process(() => {
                         OO.ui.alert("Some fields are still invalid.");
                     });
@@ -1837,7 +1839,10 @@ mw.loader.using([
                         window.location.reload();
                     } else {
                         window.location.href =
-                            mw.config.get("wgArticlePath").replace(/\$1/g, parsoidDocument.page)
+                            mw.config.get("wgArticlePath").replace(
+                            	/\$1/g,
+                            	encodeURIComponent(parsoidDocument.page)
+                        	);
                     }
                 }, this);
                 break;
