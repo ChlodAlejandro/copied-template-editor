@@ -29,6 +29,12 @@ mw.loader.using([
 
     await mw.loader.getScript("https://en.wikipedia.org/wiki/User:Chlod/Scripts/ParsoidDocument.js?action=raw&ctype=text/javascript");
 
+    // Basic announcements handler
+    if (+localStorage.getItem("cte-last-open") < 1642211396764) {
+        mw.notify("CopiedTemplateEditor recently had significant background code changes. Please report any new bugs to the developer. Thanks!");
+        localStorage.setItem("cte-last-open", `${Date.now()}`);
+    }
+
     // =============================== STYLES =================================
 
     mw.util.addCSS(`
